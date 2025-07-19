@@ -1,0 +1,50 @@
+{
+  "name": "dossier-docs",
+  "version": "1.0.0",
+  "description": "Comprehensive documentation for the Dossier Live RAG System",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "export": "next build && next export",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "lucide-react": "^0.525.0",
+    "next": "^14.0.0",
+    "nextra": "^2.13.0",
+    "nextra-theme-docs": "^2.13.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "dossier",
+    "rag",
+    "frappe",
+    "documentation",
+    "ai",
+    "vector-search",
+    "llm",
+    "microservices"
+  ],
+  "author": "Dossier Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/dossier.git",
+    "directory": "docs-website"
+  },
+  "homepage": "https://dossier-docs.vercel.app"
+}

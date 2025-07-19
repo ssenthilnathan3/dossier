@@ -1,0 +1,14 @@
+{
+  "index": "Introduction",
+  "getting-started": "🚀 Getting Started",
+  "architecture": "🏗️ Architecture",
+  "features": "✨ Features",
+  "installation": "📦 Installation",
+  "configuration": "⚙️ Configuration",
+  "deployment": "🚀 Deployment",
+  "api-reference": "📚 API Reference",
+  "guides": "📖 Guides",
+  "troubleshooting": "🔧 Troubleshooting",
+  "contributing": "🤝 Contributing",
+  "changelog": "📝 Changelog"
+}

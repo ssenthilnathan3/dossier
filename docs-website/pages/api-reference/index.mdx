@@ -1,0 +1,740 @@
+---
+title: API Reference
+description: Complete API documentation for all Dossier services and endpoints
+---
+
+import { Callout, Steps, Cards, Card } from 'nextra/components'
+
+# API Reference
+
+Complete API documentation for the Dossier Live RAG system. All APIs are RESTful and return JSON responses unless otherwise specified.
+
+## Base URLs
+
+| Service | Base URL | Description |
+|---------|----------|-------------|
+| **API Gateway** | `http://localhost:8080` | Main entry point for all client requests |
+| **Query Service** | `http://localhost:8003` | Direct access to search and retrieval |
+| **Ingestion Service** | `http://localhost:8001` | Document processing and ingestion |
+| **Embedding Service** | `http://localhost:8002` | Vector embedding generation |
+| **LLM Service** | `http://localhost:8004` | AI response generation |
+| **Webhook Handler** | `http://localhost:3001` | Frappe webhook processing |
+
+<Callout type="info">
+In production, all requests should go through the **API Gateway** which handles authentication, rate limiting, and request routing.
+</Callout>
+
+## Authentication
+
+### JWT Token Authentication
+
+All API requests (except webhooks) require JWT authentication:
+
+```http
+Authorization: Bearer <jwt_token>
+```
+
+### Get Authentication Token
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "your_password"
+}
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "user": {
+    "id": "user_id",
+    "username": "admin",
+    "role": "admin"
+  }
+}
+```
+
+### Refresh Token
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+Authorization: Bearer <refresh_token>
+```
+
+## Chat and Query API
+
+### Stream Chat Response
+
+Stream AI responses for natural language queries.
+
+```http
+POST /api/chat/stream
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+
+{
+  "query": "What are our top customers this month?",
+  "conversation_id": "optional_conversation_id",
+  "filters": {
+    "doctype": ["Customer", "Sales Order"],
+    "date_range": {
+      "start": "2024-01-01",
+      "end": "2024-01-31"
+    }
+  },
+  "limit": 5
+}
+```
+
+**Streaming Response:**
+```json
+// Initial response
+{"type": "start", "conversation_id": "conv_123"}
+
+// Content chunks
+{"type": "content", "data": "Based on your sales data, "}
+{"type": "content", "data": "the top customers this month are:\n\n"}
+{"type": "content", "data": "1. **ABC Corp** - $50,000 in orders\n"}
+
+// Source citations
+{"type": "sources", "data": [
+  {
+    "document_id": "CUST-001",
+    "title": "ABC Corp",
+    "score": 0.95,
+    "excerpt": "ABC Corp has been our largest customer..."
+  }
+]}
+
+// Completion
+{"type": "done", "data": {"response_time": 1.2, "tokens_used": 145}}
+```
+
+### Standard Chat Response
+
+Non-streaming chat response for simpler integration.
+
+```http
+POST /api/chat
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+
+{
+  "query": "Show me recent sales orders",
+  "conversation_id": "optional_conversation_id",
+  "include_sources": true
+}
+```
+
+**Response:**
+```json
+{
+  "response": "Here are the recent sales orders:\n\n1. SO-2024-001...",
+  "conversation_id": "conv_123",
+  "sources": [
+    {
+      "document_id": "SO-2024-001",
+      "doctype": "Sales Order",
+      "title": "Sales Order SO-2024-001",
+      "score": 0.92,
+      "excerpt": "Sales order for ABC Corp...",
+      "metadata": {
+        "customer": "ABC Corp",
+        "total": 25000,
+        "date": "2024-01-15"
+      }
+    }
+  ],
+  "response_time": 2.1,
+  "tokens_used": 187
+}
+```
+
+## Search API
+
+### Semantic Search
+
+Perform semantic search across indexed documents.
+
+```http
+POST /api/search
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+
+{
+  "query": "high value customers",
+  "filters": {
+    "doctype": "Customer",
+    "disabled": 0
+  },
+  "limit": 10,
+  "threshold": 0.7,
+  "include_metadata": true
+}
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "chunk_cust_001_0",
+      "score": 0.95,
+      "content": "ABC Corp is our largest customer with over $1M in annual revenue...",
+      "metadata": {
+        "document_id": "CUST-001",
+        "doctype": "Customer",
+        "customer_name": "ABC Corp",
+        "creation": "2023-01-15T10:30:00Z",
+        "chunk_index": 0
+      }
+    }
+  ],
+  "total_results": 15,
+  "query_time": 0.156,
+  "filters_applied": {
+    "doctype": "Customer",
+    "disabled": 0
+  }
+}
+```
+
+### Full-Text Search
+
+Traditional keyword-based search.
+
+```http
+GET /api/search/fulltext?q=ABC%20Corp&doctype=Customer&limit=5
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "document_id": "CUST-001",
+      "doctype": "Customer",
+      "title": "ABC Corp",
+      "content": "ABC Corp customer details...",
+      "relevance_score": 0.89,
+      "metadata": {
+        "customer_name": "ABC Corp",
+        "creation": "2023-01-15T10:30:00Z"
+      }
+    }
+  ],
+  "total_results": 3,
+  "query_time": 0.045
+}
+```
+
+## Document Management API
+
+### Get Document Status
+
+Check the processing status of a specific document.
+
+```http
+GET /api/documents/{document_id}/status
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "document_id": "CUST-001",
+  "doctype": "Customer",
+  "status": "processed",
+  "chunks_generated": 3,
+  "embeddings_created": 3,
+  "processed_at": "2024-01-15T10:35:22Z",
+  "processing_time": 2.3,
+  "metadata": {
+    "content_length": 1547,
+    "fields_processed": ["customer_name", "customer_details"],
+    "last_modified": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+### List Documents
+
+Get a list of processed documents with pagination.
+
+```http
+GET /api/documents?doctype=Customer&status=processed&limit=20&offset=0
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "documents": [
+    {
+      "document_id": "CUST-001",
+      "doctype": "Customer",
+      "title": "ABC Corp",
+      "status": "processed",
+      "chunks_count": 3,
+      "processed_at": "2024-01-15T10:35:22Z",
+      "last_modified": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 156,
+    "limit": 20,
+    "offset": 0,
+    "has_next": true
+  }
+}
+```
+
+### Reprocess Document
+
+Trigger reprocessing of a specific document.
+
+```http
+POST /api/documents/{document_id}/reprocess
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "document_id": "CUST-001",
+  "status": "queued_for_reprocessing",
+  "job_id": "job_456",
+  "estimated_completion": "2024-01-15T10:45:00Z"
+}
+```
+
+### Delete Document
+
+Remove a document and its embeddings from the system.
+
+```http
+DELETE /api/documents/{document_id}
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "document_id": "CUST-001",
+  "status": "deleted",
+  "chunks_removed": 3,
+  "embeddings_removed": 3,
+  "deleted_at": "2024-01-15T11:00:00Z"
+}
+```
+
+## Configuration API
+
+### Get Doctype Configurations
+
+Retrieve configuration for document types.
+
+```http
+GET /api/config/doctypes
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "doctypes": [
+    {
+      "id": 1,
+      "doctype": "Customer",
+      "enabled": true,
+      "fields": ["customer_name", "customer_details", "customer_group"],
+      "filters": {"disabled": 0},
+      "chunk_size": 1000,
+      "chunk_overlap": 200,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Update Doctype Configuration
+
+Modify configuration for a specific document type.
+
+```http
+PUT /api/config/doctypes/{doctype}
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+
+{
+  "enabled": true,
+  "fields": ["customer_name", "customer_details", "territory"],
+  "filters": {"disabled": 0, "customer_group": "Commercial"},
+  "chunk_size": 1200,
+  "chunk_overlap": 250
+}
+```
+
+**Response:**
+```json
+{
+  "doctype": "Customer",
+  "configuration_updated": true,
+  "requires_reprocessing": true,
+  "affected_documents": 45,
+  "updated_at": "2024-01-15T11:15:00Z"
+}
+```
+
+## System API
+
+### Health Check
+
+Check the health status of all services.
+
+```http
+GET /api/health
+```
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-15T11:20:00Z",
+  "version": "2.0.0",
+  "services": {
+    "api_gateway": {
+      "status": "healthy",
+      "response_time": 0.012,
+      "uptime": 86400
+    },
+    "query_service": {
+      "status": "healthy",
+      "response_time": 0.045,
+      "uptime": 86350
+    },
+    "ingestion_service": {
+      "status": "healthy",
+      "response_time": 0.023,
+      "queue_length": 3
+    },
+    "embedding_service": {
+      "status": "healthy",
+      "response_time": 0.089,
+      "model_loaded": true
+    },
+    "llm_service": {
+      "status": "healthy",
+      "response_time": 0.156,
+      "model": "llama3.2:latest"
+    }
+  },
+  "databases": {
+    "postgresql": {
+      "status": "healthy",
+      "connections": 8,
+      "response_time": 0.003
+    },
+    "redis": {
+      "status": "healthy",
+      "memory_usage": "245MB",
+      "connected_clients": 12
+    },
+    "qdrant": {
+      "status": "healthy",
+      "collections": 1,
+      "points_count": 15642,
+      "disk_usage": "1.2GB"
+    }
+  }
+}
+```
+
+### System Metrics
+
+Get system performance metrics.
+
+```http
+GET /api/metrics
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "requests": {
+    "total": 10567,
+    "per_minute": 45,
+    "success_rate": 0.996
+  },
+  "response_times": {
+    "p50": 0.234,
+    "p95": 1.456,
+    "p99": 3.678
+  },
+  "processing": {
+    "documents_processed": 1234,
+    "embeddings_generated": 3567,
+    "search_queries": 8901,
+    "llm_requests": 456
+  },
+  "resources": {
+    "cpu_usage": 0.45,
+    "memory_usage": 0.67,
+    "disk_usage": 0.23
+  }
+}
+```
+
+### System Information
+
+Get detailed system information.
+
+```http
+GET /api/system/info
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "version": "2.0.0",
+  "build": "2024.01.15.1",
+  "environment": "production",
+  "deployment_time": "2024-01-15T08:00:00Z",
+  "configuration": {
+    "default_model": "llama3.2:latest",
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "chunk_size": 1000,
+    "max_tokens": 4096
+  },
+  "features": {
+    "streaming_enabled": true,
+    "batch_processing": true,
+    "monitoring": true,
+    "rate_limiting": true
+  }
+}
+```
+
+## Webhook API
+
+### Frappe Webhook Endpoint
+
+Receives webhooks from Frappe instances.
+
+```http
+POST /webhook
+Content-Type: application/json
+X-Frappe-Signature: sha256=<hmac_signature>
+
+{
+  "doctype": "Customer",
+  "docname": "CUST-001",
+  "action": "on_update",
+  "data": {
+    "customer_name": "ABC Corp",
+    "customer_details": "Updated customer information...",
+    "disabled": 0,
+    "creation": "2023-01-15T10:30:00Z",
+    "modified": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "status": "accepted",
+  "job_id": "job_789",
+  "estimated_processing_time": "30 seconds",
+  "webhook_id": "webhook_123"
+}
+```
+
+### Webhook Status
+
+Check the processing status of a webhook.
+
+```http
+GET /webhook/status/{job_id}
+```
+
+**Response:**
+```json
+{
+  "job_id": "job_789",
+  "status": "completed",
+  "webhook_received_at": "2024-01-15T10:30:05Z",
+  "processing_started_at": "2024-01-15T10:30:06Z",
+  "processing_completed_at": "2024-01-15T10:30:28Z",
+  "processing_time": 22.3,
+  "document_id": "CUST-001",
+  "chunks_generated": 3,
+  "embeddings_created": 3
+}
+```
+
+## Error Responses
+
+All API endpoints return consistent error responses:
+
+### Error Format
+
+```json
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "The request is invalid or malformed",
+    "details": "Missing required field: query",
+    "timestamp": "2024-01-15T11:30:00Z",
+    "request_id": "req_abc123"
+  }
+}
+```
+
+### Common Error Codes
+
+| Code | Status | Description |
+|------|--------|-------------|
+| `INVALID_REQUEST` | 400 | Request validation failed |
+| `UNAUTHORIZED` | 401 | Authentication required |
+| `FORBIDDEN` | 403 | Insufficient permissions |
+| `NOT_FOUND` | 404 | Resource not found |
+| `RATE_LIMITED` | 429 | Rate limit exceeded |
+| `INTERNAL_ERROR` | 500 | Internal server error |
+| `SERVICE_UNAVAILABLE` | 503 | Service temporarily unavailable |
+
+### Rate Limiting
+
+Rate limiting headers are included in all responses:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 87
+X-RateLimit-Reset: 1705334400
+X-RateLimit-Retry-After: 45
+```
+
+## SDKs and Client Libraries
+
+### Python SDK
+
+```python
+from dossier_client import DossierClient
+
+# Initialize client
+client = DossierClient(
+    base_url="https://your-dossier-instance.com",
+    api_key="your_api_key"
+)
+
+# Search documents
+results = client.search("high value customers", limit=10)
+
+# Stream chat response
+for chunk in client.chat_stream("What are our top products?"):
+    print(chunk.content, end='', flush=True)
+```
+
+### JavaScript SDK
+
+```javascript
+import { DossierClient } from '@dossier/client';
+
+// Initialize client
+const client = new DossierClient({
+  baseUrl: 'https://your-dossier-instance.com',
+  apiKey: 'your_api_key'
+});
+
+// Search documents
+const results = await client.search('recent sales orders', { limit: 5 });
+
+// Stream chat response
+const stream = client.chatStream('Show me customer trends');
+for await (const chunk of stream) {
+  console.log(chunk.content);
+}
+```
+
+### cURL Examples
+
+#### Basic Search
+```bash
+curl -X POST "https://your-dossier-instance.com/api/search" \
+  -H "Authorization: Bearer your_jwt_token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "high value customers",
+    "limit": 5
+  }'
+```
+
+#### Stream Chat
+```bash
+curl -X POST "https://your-dossier-instance.com/api/chat/stream" \
+  -H "Authorization: Bearer your_jwt_token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What are our top customers this month?"
+  }' \
+  --no-buffer
+```
+
+## WebSocket API
+
+### Real-time Updates
+
+Connect to WebSocket for real-time updates:
+
+```javascript
+const ws = new WebSocket('wss://your-dossier-instance.com/ws');
+
+ws.onopen = function() {
+  // Authenticate
+  ws.send(JSON.stringify({
+    type: 'auth',
+    token: 'your_jwt_token'
+  }));
+};
+
+ws.onmessage = function(event) {
+  const data = JSON.parse(event.data);
+  
+  switch(data.type) {
+    case 'document_processed':
+      console.log('New document processed:', data.document_id);
+      break;
+    case 'system_status':
+      console.log('System status update:', data.status);
+      break;
+  }
+};
+```
+
+### WebSocket Message Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `auth` | Authentication | `{"type": "auth", "token": "jwt_token"}` |
+| `document_processed` | Document processing complete | `{"type": "document_processed", "document_id": "CUST-001"}` |
+| `system_status` | System status update | `{"type": "system_status", "status": "healthy"}` |
+| `chat_response` | Streaming chat response | `{"type": "chat_response", "content": "text"}` |
+
+---
+
+<Callout type="info">
+**API Versioning**: All APIs are versioned. Current version is `v1`. Future versions will be available at `/api/v2/` endpoints.
+</Callout>
+
+For interactive API exploration, visit the **OpenAPI documentation** at `https://your-dossier-instance.com/docs` when your system is running.

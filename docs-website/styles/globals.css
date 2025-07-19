@@ -1,0 +1,22 @@
+/* styles/globals.css */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+html {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* Target Nextra's content specifically */
+.nx-prose {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* For the entire body */
+body {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* Navigation and sidebar */
+.nextra-nav-container,
+.nextra-sidebar {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+}

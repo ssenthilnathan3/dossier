@@ -1,0 +1,320 @@
+---
+title: Getting Started
+description: Get Dossier up and running in your environment quickly
+---
+
+import { Steps, Callout, Cards, Card } from 'nextra/components'
+
+# Getting Started with Dossier
+
+Get your Dossier Live RAG system up and running in under 10 minutes. This guide will walk you through the complete setup process from initial installation to your first AI-powered document search.
+
+<Callout type="info">
+  **Prerequisites**: Make sure you have Docker 20.10+ and Docker Compose 2.0+ installed on your system.
+</Callout>
+
+## Quick Start (Recommended)
+
+The fastest way to get Dossier running is using our automated setup:
+
+<Steps>
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/your-org/dossier.git
+cd dossier
+```
+
+### Configure Environment
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit the configuration file
+nano .env  # or use your preferred editor
+```
+
+**Required Configuration:**
+```env
+# Frappe Integration (REQUIRED)
+FRAPPE_URL=https://your-frappe-instance.com
+FRAPPE_API_KEY=your_frappe_api_key
+FRAPPE_API_SECRET=your_frappe_api_secret
+
+# Security Secrets (Generate secure values)
+JWT_SECRET=your_jwt_secret_32_characters_minimum
+WEBHOOK_SECRET=your_webhook_secret_16_characters
+
+# Database Password
+POSTGRES_PASSWORD=your_secure_database_password
+```
+
+### Generate Secure Secrets
+
+```bash
+# Generate JWT secret (32+ characters)
+openssl rand -hex 32
+
+# Generate webhook secret (16+ characters)  
+openssl rand -hex 16
+
+# Generate database password
+openssl rand -base64 32
+```
+
+### Start the System
+
+```bash
+# Complete automated setup and startup
+make quick-start
+```
+
+This command will:
+- Build all Docker images
+- Start all microservices
+- Initialize the database schema
+- Set up vector collections
+- Run system integration tests
+- Pull default LLM models (optional)
+
+### Verify Installation
+
+```bash
+# Check that all services are healthy
+make health-check
+
+# Expected output:
+# ✅ Webhook Handler: healthy
+# ✅ Ingestion Service: healthy  
+# ✅ Embedding Service: healthy
+# ✅ Query Service: healthy
+# ✅ LLM Service: healthy
+# ✅ API Gateway: healthy
+# ✅ Frontend: healthy
+```
+
+### Access the System
+
+Once all services are running:
+
+- **🌐 Chat Interface**: http://localhost:3000
+- **📡 API Gateway**: http://localhost:8080  
+- **📚 API Documentation**: http://localhost:8080/docs
+- **💊 Health Check**: http://localhost:8080/health
+
+</Steps>
+
+## Manual Setup (Alternative)
+
+If you prefer more control over the setup process:
+
+<Steps>
+
+### Build Services
+
+```bash
+# Build all Docker images
+make build
+```
+
+### Start Infrastructure
+
+```bash
+# Start core infrastructure (databases, queues)
+docker-compose up -d postgres redis qdrant ollama
+```
+
+### Start Application Services
+
+```bash
+# Start all application services
+make up
+```
+
+### Initialize System
+
+```bash
+# Set up database schema and vector collections
+make integration-setup
+```
+
+### Pull LLM Models
+
+```bash
+# Download default AI models (takes 10-30 minutes)
+make pull-models
+```
+
+</Steps>
+
+## First Steps After Installation
+
+### 1. Configure Document Types
+
+Configure which Frappe doctypes to index:
+
+```bash
+# Access the database
+make db-shell
+
+# Add document type configurations
+INSERT INTO doctype_configs (doctype, enabled, fields, filters, chunk_size, chunk_overlap)
+VALUES 
+    ('Customer', true, '["customer_name", "customer_details", "customer_group"]', '{"disabled": 0}', 1000, 200),
+    ('Item', true, '["item_name", "description", "item_group"]', '{"disabled": 0}', 800, 150),
+    ('Sales Order', true, '["customer", "items", "remarks"]', '{"docstatus": 1}', 1200, 250);
+```
+
+### 2. Set Up Frappe Webhooks
+
+In your Frappe instance:
+
+1. Navigate to **Setup → Integrations → Webhook**
+2. Create a new webhook:
+   - **Webhook URL**: `http://your-dossier-host:3001/webhook`
+   - **Request Method**: POST
+   - **Document Type**: Select your configured doctypes
+   - **Webhook Secret**: Use the same secret from your `.env` file
+
+### 3. Test the System
+
+```bash
+# Test end-to-end functionality
+make test-integration
+
+# Test individual components
+make test-webhook
+make test-query
+make test-llm
+```
+
+### 4. Try Your First Query
+
+1. Open the chat interface at http://localhost:3000
+2. Try asking about your documents:
+   - "Show me recent customers"
+   - "What are our top selling items?"
+   - "Find sales orders from this month"
+
+## Common Configuration Options
+
+### Environment Variables
+
+Here are the most commonly configured environment variables:
+
+```env
+# === CORE CONFIGURATION ===
+FRAPPE_URL=https://your-frappe-instance.com
+FRAPPE_API_KEY=your_api_key
+FRAPPE_API_SECRET=your_api_secret
+
+# === SECURITY ===
+JWT_SECRET=secure_jwt_secret_32_characters_minimum
+WEBHOOK_SECRET=secure_webhook_secret_16_chars
+POSTGRES_PASSWORD=secure_database_password
+
+# === LLM CONFIGURATION ===
+DEFAULT_MODEL=llama3.2                    # or llama2, codellama
+OLLAMA_URL=http://ollama:11434
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=4096
+
+# === EMBEDDING CONFIGURATION ===
+EMBEDDING_MODEL=all-MiniLM-L6-v2         # or all-mpnet-base-v2
+BATCH_SIZE=32
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+
+# === PERFORMANCE ===
+REDIS_MAXMEMORY=2gb
+POSTGRES_MAX_CONNECTIONS=100
+QDRANT_COLLECTION_SIZE=1000000
+```
+
+### Service Ports
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Frontend | 3000 | React chat interface |
+| Webhook Handler | 3001 | Frappe webhook receiver |
+| Ingestion Service | 8001 | Document processing |
+| Embedding Service | 8002 | Vector embeddings |
+| Query Service | 8003 | Search and retrieval |
+| LLM Service | 8004 | AI response generation |
+| API Gateway | 8080 | Main API endpoint |
+
+## Verification Checklist
+
+Before proceeding to production use, verify that:
+
+- [ ] All services show "healthy" status
+- [ ] Frontend loads at http://localhost:3000
+- [ ] API documentation accessible at http://localhost:8080/docs
+- [ ] Database connection established
+- [ ] Vector database initialized
+- [ ] LLM models downloaded
+- [ ] Frappe webhook configured
+- [ ] Test queries return results
+- [ ] Integration tests pass
+
+## Next Steps
+
+<Cards>
+  <Card title="🏗️ Architecture Overview" href="/architecture">
+    Learn about the system architecture and how components interact
+  </Card>
+  <Card title="⚙️ Configuration Guide" href="/configuration">
+    Explore all configuration options and environment variables
+  </Card>
+  <Card title="🚀 Production Deployment" href="/deployment">
+    Deploy Dossier to production with SSL, monitoring, and backups
+  </Card>
+  <Card title="📚 API Reference" href="/api-reference">
+    Comprehensive API documentation for all services
+  </Card>
+</Cards>
+
+## Troubleshooting
+
+Having issues? Check these common solutions:
+
+### Services Won't Start
+
+```bash
+# Check service logs
+make logs
+
+# Check system resources
+docker stats
+
+# Restart services
+make restart
+```
+
+### Can't Connect to Frappe
+
+- Verify `FRAPPE_URL` is accessible from Docker containers
+- Check API key and secret are correct
+- Ensure Frappe instance allows API access
+
+### LLM Responses Are Slow
+
+- LLM inference can take 10-30 seconds on CPU
+- Consider using a GPU-enabled deployment
+- Try smaller models like `llama2:7b` instead of `llama2:13b`
+
+### Memory Usage Too High
+
+- Reduce `BATCH_SIZE` for embedding generation
+- Limit `REDIS_MAXMEMORY` and `POSTGRES_MAX_CONNECTIONS`
+- Consider using lighter LLM models
+
+For more detailed troubleshooting, see our [Troubleshooting Guide](/troubleshooting).
+
+---
+
+<Callout type="success">
+  **Success!** 🎉 You now have a fully functional Dossier Live RAG system. Start exploring your documents with natural language queries!
+</Callout>

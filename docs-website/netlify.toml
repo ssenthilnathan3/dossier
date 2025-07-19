@@ -1,0 +1,152 @@
+[build]
+publish = "out"
+command = "npm run build && npm run export"
+
+[build.environment]
+NODE_VERSION = "18"
+NPM_VERSION = "9"
+NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1"
+
+# Redirect rules
+[[redirects]]
+from = "/docs"
+to = "/"
+status = 301
+force = true
+
+[[redirects]]
+from = "/documentation"
+to = "/"
+status = 301
+force = true
+
+[[redirects]]
+from = "/guide"
+to = "/getting-started"
+status = 301
+force = true
+
+[[redirects]]
+from = "/setup"
+to = "/getting-started"
+status = 301
+force = true
+
+[[redirects]]
+from = "/install"
+to = "/getting-started/installation"
+status = 301
+force = true
+
+[[redirects]]
+from = "/config"
+to = "/configuration"
+status = 301
+force = true
+
+[[redirects]]
+from = "/deploy"
+to = "/deployment"
+status = 301
+force = true
+
+[[redirects]]
+from = "/api"
+to = "/api-reference"
+status = 301
+force = true
+
+[[redirects]]
+from = "/help"
+to = "/troubleshooting"
+status = 301
+force = true
+
+[[redirects]]
+from = "/support"
+to = "/troubleshooting"
+status = 301
+force = true
+
+# Catch-all for SPA routing (if needed)
+[[redirects]]
+from = "/*"
+to = "/404.html"
+status = 404
+
+# Security headers
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-XSS-Protection = "1; mode=block"
+X-Content-Type-Options = "nosniff"
+Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache static assets
+[[headers]]
+for = "/assets/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/_next/static/*"
+[headers.values]
+Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache HTML files
+[[headers]]
+for = "/*.html"
+[headers.values]
+Cache-Control = "public, max-age=3600"
+
+# Development settings
+[context.develop]
+command = "npm run dev"
+
+[context.branch-deploy]
+command = "npm run build && npm run export"
+
+[context.deploy-preview]
+command = "npm run build && npm run export"
+
+# Plugin configuration
+[[plugins]]
+package = "@netlify/plugin-nextjs"
+
+[[plugins]]
+package = "netlify-plugin-submit-sitemap"
+[plugins.inputs]
+baseUrl = "https://dossier-docs.netlify.app"
+sitemapPath = "/sitemap.xml"
+providers = ["google", "bing"]
+
+# Form handling (if needed for contact forms)
+[build.processing]
+skip_processing = false
+
+[build.processing.css]
+bundle = true
+minify = true
+
+[build.processing.js]
+bundle = true
+minify = true
+
+[build.processing.html]
+pretty_urls = true
+
+# Environment variables for different contexts
+[context.production.environment]
+NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1"
+
+[context.staging.environment]
+NODE_ENV = "staging"
+NEXT_TELEMETRY_DISABLED = "1"
+
+[context.development.environment]
+NODE_ENV = "development"

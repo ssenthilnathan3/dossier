@@ -1,0 +1,817 @@
+---
+title: Troubleshooting Guide
+description: Comprehensive troubleshooting guide for common Dossier issues and solutions
+---
+
+import { Callout, Steps, Cards, Card } from 'nextra/components'
+
+# Troubleshooting Guide
+
+This guide helps you diagnose and resolve common issues with the Dossier Live RAG system. Issues are organized by category with step-by-step solutions.
+
+## Quick Diagnostics
+
+### Health Check Commands
+
+```bash
+# Check all services
+make health-check
+
+# Check individual service logs
+make logs service=api-gateway
+make logs service=query-service
+
+# Check system resources
+docker stats --no-stream
+
+# Check disk space
+df -h
+```
+
+### System Status Dashboard
+
+```bash
+# View real-time status
+curl http://localhost:8080/health | jq
+
+# Check service metrics
+curl http://localhost:8080/metrics
+
+# View processing queue
+curl http://localhost:8080/api/system/queue-status
+```
+
+## Installation Issues
+
+### Docker Won't Start
+
+**Symptoms:**
+- Services fail to start
+- "Container exits immediately"
+- "Port already in use" errors
+
+**Solutions:**
+
+<Steps>
+
+### Check Docker Installation
+```bash
+docker --version
+docker-compose --version
+
+# Should show Docker 20.10+ and Compose 2.0+
+```
+
+### Check Port Conflicts
+```bash
+# Check which process is using ports
+sudo netstat -tulpn | grep :3000
+sudo netstat -tulpn | grep :8080
+
+# Kill conflicting processes
+sudo kill -9 <PID>
+```
+
+### Check System Resources
+```bash
+# Available memory (need 8GB+)
+free -h
+
+# Available disk space (need 50GB+)
+df -h
+
+# CPU cores (need 4+)
+nproc
+```
+
+### Clean Docker Environment
+```bash
+# Stop all containers
+docker-compose down -v
+
+# Remove old containers and images
+docker system prune -af
+
+# Restart Docker service
+sudo systemctl restart docker
+```
+
+</Steps>
+
+### Environment Configuration Issues
+
+**Symptoms:**
+- "Environment variable not set" errors
+- Authentication failures
+- Service connection errors
+
+**Solutions:**
+
+<Steps>
+
+### Verify Environment File
+```bash
+# Check if .env file exists
+ls -la .env
+
+# Validate required variables
+grep -E '^(FRAPPE_URL|FRAPPE_API_KEY|JWT_SECRET)' .env
+```
+
+### Generate Missing Secrets
+```bash
+# Generate JWT secret
+openssl rand -hex 32
+
+# Generate webhook secret
+openssl rand -hex 16
+
+# Add to .env file
+echo "JWT_SECRET=your_generated_secret" >> .env
+```
+
+### Test Frappe Connection
+```bash
+# Test API connectivity
+curl -H "Authorization: token your_api_key:your_api_secret" \
+  "https://your-frappe-instance.com/api/method/frappe.auth.get_logged_user"
+```
+
+</Steps>
+
+## Service Connectivity Issues
+
+### Services Can't Communicate
+
+**Symptoms:**
+- "Connection refused" errors
+- "Service unavailable" responses
+- Timeout errors between services
+
+**Solutions:**
+
+<Steps>
+
+### Check Docker Network
+```bash
+# List Docker networks
+docker network ls
+
+# Inspect Dossier network
+docker network inspect dossier_default
+
+# Test network connectivity
+docker exec api-gateway ping query-service
+docker exec query-service ping qdrant
+```
+
+### Verify Service Status
+```bash
+# Check if all containers are running
+docker ps
+
+# Check service health endpoints
+curl http://localhost:8001/health  # Ingestion
+curl http://localhost:8002/health  # Embedding
+curl http://localhost:8003/health  # Query
+curl http://localhost:8004/health  # LLM
+```
+
+### Check Firewall and Ports
+```bash
+# Check if ports are blocked
+sudo ufw status
+sudo iptables -L
+
+# Test port accessibility
+telnet localhost 8080
+nc -zv localhost 8080
+```
+
+</Steps>
+
+### Database Connection Issues
+
+**Symptoms:**
+- "Could not connect to database" errors
+- "Connection pool exhausted" warnings
+- Slow database queries
+
+**Solutions:**
+
+<Steps>
+
+### Check PostgreSQL Status
+```bash
+# Check if PostgreSQL is running
+docker exec postgres pg_isready -U dossier
+
+# Test database connection
+docker exec postgres psql -U dossier -d dossier -c "SELECT 1;"
+
+# Check database logs
+docker-compose logs postgres
+```
+
+### Verify Database Configuration
+```bash
+# Check database URL format
+echo $DATABASE_URL
+
+# Should be: postgresql://user:pass@host:5432/database
+```
+
+### Fix Connection Pool Issues
+```bash
+# Check active connections
+docker exec postgres psql -U dossier -d dossier -c "
+SELECT count(*) as active_connections
+FROM pg_stat_activity
+WHERE state = 'active';"
+
+# Restart database if needed
+docker-compose restart postgres
+```
+
+### Database Performance Issues
+```bash
+# Check slow queries
+docker exec postgres psql -U dossier -d dossier -c "
+SELECT query, mean_exec_time, calls
+FROM pg_stat_statements
+ORDER BY mean_exec_time DESC
+LIMIT 10;"
+
+# Check database size
+docker exec postgres psql -U dossier -d dossier -c "
+SELECT pg_size_pretty(pg_database_size('dossier'));"
+```
+
+</Steps>
+
+## Performance Issues
+
+### Slow Query Responses
+
+**Symptoms:**
+- Search queries take longer than 5 seconds
+- Chat responses timeout
+- High CPU usage
+
+**Solutions:**
+
+<Steps>
+
+### Check Vector Database Performance
+```bash
+# Check Qdrant metrics
+curl http://localhost:6333/telemetry
+
+# Check collection stats
+curl http://localhost:6333/collections/documents
+
+# Optimize collection if needed
+curl -X PUT http://localhost:6333/collections/documents \
+  -H 'Content-Type: application/json' \
+  -d '{"optimizer_config": {"memmap_threshold": 20000}}'
+```
+
+### Monitor System Resources
+```bash
+# Check memory usage by service
+docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+
+# Check disk I/O
+iostat -x 1 5
+
+# Check network usage
+iftop -i docker0
+```
+
+### Optimize Configuration
+```env
+# Increase batch sizes in .env
+BATCH_SIZE=64
+EMBEDDING_BATCH_SIZE=32
+
+# Adjust worker counts
+WORKERS_PER_CORE=2
+MAX_WORKERS=8
+
+# Optimize database connections
+POSTGRES_MAX_CONNECTIONS=50
+```
+
+</Steps>
+
+### High Memory Usage
+
+**Symptoms:**
+- Out of memory errors
+- System becomes unresponsive
+- Services get killed by OOM killer
+
+**Solutions:**
+
+<Steps>
+
+### Identify Memory Consumers
+```bash
+# Check memory usage by container
+docker stats --no-stream --format "table {{.Container}}\t{{.MemUsage}}\t{{.MemPerc}}"
+
+# Check system memory
+free -h
+cat /proc/meminfo
+```
+
+### Optimize Memory Usage
+```env
+# Reduce Redis memory limit
+REDIS_MAXMEMORY=1gb
+
+# Limit embedding batch size
+BATCH_SIZE=16
+EMBEDDING_BATCH_SIZE=8
+
+# Reduce worker processes
+MAX_WORKERS=4
+```
+
+### Configure Memory Limits
+```yaml
+# In docker-compose.yml
+services:
+  llm-service:
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+```
+
+### Clear Caches
+```bash
+# Clear Redis cache
+docker exec redis redis-cli FLUSHALL
+
+# Clear system cache
+sudo sync && echo 3 | sudo tee /proc/sys/vm/drop_caches
+```
+
+</Steps>
+
+## Document Processing Issues
+
+### Documents Not Getting Indexed
+
+**Symptoms:**
+- Webhooks received but documents not processed
+- Processing queue backing up
+- Search returns no results for new documents
+
+**Solutions:**
+
+<Steps>
+
+### Check Webhook Processing
+```bash
+# Check webhook handler logs
+docker-compose logs webhook-handler
+
+# Check Redis queue length
+docker exec redis redis-cli LLEN ingestion_queue
+
+# Check processing status
+curl http://localhost:8001/health
+```
+
+### Verify Doctype Configuration
+```bash
+# Check if doctype is configured
+curl http://localhost:8080/api/config/doctypes
+
+# Add missing doctype configuration
+curl -X POST http://localhost:8080/api/config/doctypes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "doctype": "Customer",
+    "enabled": true,
+    "fields": ["customer_name", "customer_details"]
+  }'
+```
+
+### Check Document Access
+```bash
+# Test Frappe API access
+curl -H "Authorization: token api_key:api_secret" \
+  "https://your-frappe.com/api/resource/Customer/CUST-001"
+
+# Check ingestion service logs
+docker-compose logs ingestion-service | grep ERROR
+```
+
+### Manual Reprocessing
+```bash
+# Trigger manual reprocessing
+curl -X POST http://localhost:8080/api/documents/CUST-001/reprocess
+
+# Check processing status
+curl http://localhost:8080/api/documents/CUST-001/status
+```
+
+</Steps>
+
+### Embedding Generation Failures
+
+**Symptoms:**
+- "Model not found" errors
+- "CUDA out of memory" errors
+- Slow embedding generation
+
+**Solutions:**
+
+<Steps>
+
+### Check Embedding Model
+```bash
+# Check if model is loaded
+curl http://localhost:8002/health
+
+# Check available models
+curl http://localhost:8002/models
+
+# Download model if missing
+docker exec embedding-service python -c "
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer('BAAI/bge-small-en-v1.5')
+"
+```
+
+### Fix Memory Issues
+```env
+# Use smaller model
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+
+# Reduce batch size
+EMBEDDING_BATCH_SIZE=8
+
+# Disable GPU if causing issues
+CUDA_VISIBLE_DEVICES=""
+```
+
+### Check GPU Configuration
+```bash
+# Check GPU availability
+nvidia-smi
+
+# Check Docker GPU support
+docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+```
+
+</Steps>
+
+## LLM Service Issues
+
+### LLM Not Responding
+
+**Symptoms:**
+- Chat requests timeout
+- "Model not loaded" errors
+- No response from Ollama
+
+**Solutions:**
+
+<Steps>
+
+### Check Ollama Service
+```bash
+# Check Ollama status
+curl http://localhost:11434/api/tags
+
+# Check available models
+docker exec ollama ollama list
+
+# Pull required model
+docker exec ollama ollama pull llama3.2
+```
+
+### Check Model Loading
+```bash
+# Check if model is loaded in memory
+curl http://localhost:11434/api/show -d '{"name": "llama3.2"}'
+
+# Check memory usage
+docker stats ollama
+```
+
+### Configure Model Settings
+```env
+# Use smaller model for better performance
+DEFAULT_MODEL=llama3.2:3b
+
+# Reduce context length
+LLM_MAX_TOKENS=2048
+
+# Adjust temperature
+LLM_TEMPERATURE=0.7
+```
+
+### Restart LLM Service
+```bash
+# Restart Ollama container
+docker-compose restart ollama
+
+# Wait for model loading
+sleep 30
+
+# Test LLM service
+curl http://localhost:8004/health
+```
+
+</Steps>
+
+### Slow LLM Responses
+
+**Symptoms:**
+- Responses take longer than 60 seconds
+- Timeouts in chat interface
+- High CPU usage on LLM service
+
+**Solutions:**
+
+<Steps>
+
+### Optimize Model Configuration
+```bash
+# Use smaller, faster model
+docker exec ollama ollama pull llama3.2:3b
+
+# Configure for speed over quality
+curl -X POST http://localhost:11434/api/generate \
+  -d '{
+    "model": "llama3.2",
+    "options": {
+      "num_predict": 256,
+      "temperature": 0.1,
+      "top_p": 0.9
+    }
+  }'
+```
+
+### Enable GPU Acceleration
+```yaml
+# In docker-compose.yml
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+```
+
+### Monitor Performance
+```bash
+# Check LLM service metrics
+curl http://localhost:8004/metrics
+
+# Monitor token generation speed
+docker-compose logs llm-service | grep "tokens/sec"
+```
+
+</Steps>
+
+## Authentication Issues
+
+### JWT Token Problems
+
+**Symptoms:**
+- "Invalid token" errors
+- "Token expired" messages
+- Cannot access API endpoints
+
+**Solutions:**
+
+<Steps>
+
+### Check JWT Configuration
+```bash
+# Verify JWT secret is set
+echo $JWT_SECRET
+
+# Should be at least 32 characters
+echo $JWT_SECRET | wc -c
+```
+
+### Generate New Token
+```bash
+# Login to get new token
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "your_password"}'
+```
+
+### Verify Token Format
+```bash
+# Decode JWT token (without verification)
+echo "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." | \
+  cut -d. -f2 | base64 -d
+```
+
+### Reset Authentication
+```bash
+# Reset JWT secret
+openssl rand -hex 32 > .jwt_secret
+
+# Update environment
+echo "JWT_SECRET=$(cat .jwt_secret)" >> .env
+
+# Restart API gateway
+docker-compose restart api-gateway
+```
+
+</Steps>
+
+## Frontend Issues
+
+### React App Not Loading
+
+**Symptoms:**
+- Blank white screen
+- "Failed to fetch" errors
+- Console errors in browser
+
+**Solutions:**
+
+<Steps>
+
+### Check Frontend Service
+```bash
+# Check if frontend is running
+curl http://localhost:3000
+
+# Check frontend logs
+docker-compose logs frontend
+```
+
+### Check API Connectivity
+```bash
+# Test API from frontend container
+docker exec frontend curl http://api-gateway:8080/health
+
+# Check CORS configuration
+curl -H "Origin: http://localhost:3000" \
+  -H "Access-Control-Request-Method: POST" \
+  -X OPTIONS http://localhost:8080/api/chat
+```
+
+### Browser Console Debugging
+```javascript
+// Open browser console and check for errors
+console.log('Frontend debugging');
+
+// Check API connectivity
+fetch('/api/health')
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error('API Error:', error));
+```
+
+### Rebuild Frontend
+```bash
+# Clean and rebuild frontend
+docker-compose down frontend
+docker-compose build --no-cache frontend
+docker-compose up -d frontend
+```
+
+</Steps>
+
+## Common Error Messages
+
+### "Connection refused"
+
+**Cause:** Service is not running or not accessible
+**Solution:**
+```bash
+# Check if service is running
+docker ps | grep <service-name>
+
+# Restart service
+docker-compose restart <service-name>
+
+# Check network connectivity
+docker exec <container> ping <target-service>
+```
+
+### "Out of memory"
+
+**Cause:** Insufficient system memory
+**Solution:**
+```bash
+# Check memory usage
+free -h
+
+# Reduce batch sizes
+echo "BATCH_SIZE=8" >> .env
+
+# Add swap if needed
+sudo fallocate -l 4G /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
+### "Model not found"
+
+**Cause:** AI model not downloaded or loaded
+**Solution:**
+```bash
+# Download embedding model
+docker exec embedding-service python -c "
+from sentence_transformers import SentenceTransformer
+SentenceTransformer('BAAI/bge-small-en-v1.5')
+"
+
+# Download LLM model
+docker exec ollama ollama pull llama3.2
+```
+
+### "Rate limit exceeded"
+
+**Cause:** Too many API requests
+**Solution:**
+```bash
+# Check rate limit settings
+grep RATE_LIMIT .env
+
+# Increase limits
+echo "RATE_LIMIT_PER_MINUTE=200" >> .env
+
+# Restart API gateway
+docker-compose restart api-gateway
+```
+
+## Getting Help
+
+### Collect Debug Information
+
+```bash
+#!/bin/bash
+# Generate debug report
+
+echo "=== System Information ===" > debug_report.txt
+uname -a >> debug_report.txt
+docker --version >> debug_report.txt
+docker-compose --version >> debug_report.txt
+
+echo -e "\n=== Service Status ===" >> debug_report.txt
+docker ps >> debug_report.txt
+
+echo -e "\n=== Health Checks ===" >> debug_report.txt
+curl -s http://localhost:8080/health >> debug_report.txt
+
+echo -e "\n=== Recent Logs ===" >> debug_report.txt
+docker-compose logs --tail=50 >> debug_report.txt
+
+echo -e "\n=== Resource Usage ===" >> debug_report.txt
+docker stats --no-stream >> debug_report.txt
+
+echo "Debug report saved to debug_report.txt"
+```
+
+### Support Channels
+
+<Cards>
+  <Card title="📖 Documentation" href="/">
+    Check the complete documentation for detailed guides
+  </Card>
+  <Card title="🐛 GitHub Issues" href="https://github.com/your-org/dossier/issues">
+    Report bugs and get community support
+  </Card>
+  <Card title="💬 Discussions" href="https://github.com/your-org/dossier/discussions">
+    Ask questions and share experiences
+  </Card>
+  <Card title="📧 Email Support" href="mailto:support@dossier.dev">
+    Direct support for enterprise customers
+  </Card>
+</Cards>
+
+### Before Reporting Issues
+
+Please include:
+- [ ] Dossier version (`docker exec api-gateway cat /app/VERSION`)
+- [ ] Operating system and Docker version
+- [ ] Full error messages and stack traces
+- [ ] Steps to reproduce the issue
+- [ ] Debug report (use script above)
+- [ ] Configuration files (remove sensitive data)
+
+---
+
+<Callout type="info">
+**Pro Tip**: Enable debug logging by setting `DEBUG=true` and `LOG_LEVEL=DEBUG` in your environment for more detailed troubleshooting information.
+</Callout>

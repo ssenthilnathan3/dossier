@@ -1,0 +1,341 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'docs-website/**'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'docs-website/**'
+  workflow_dispatch:
+
+jobs:
+  # Build and test the documentation
+  build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-website
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: docs-website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Build documentation
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Export static site
+        run: npm run export
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-build
+          path: docs-website/out/
+          retention-days: 7
+
+  # Deploy to Vercel (Production)
+  deploy-vercel:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    defaults:
+      run:
+        working-directory: docs-website
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: docs-website/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-build
+          path: docs-website/out/
+
+      - name: Deploy to Vercel (Production)
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # Deploy to Netlify (Staging/Preview)
+  deploy-netlify:
+    name: Deploy to Netlify
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    defaults:
+      run:
+        working-directory: docs-website
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: docs-website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and export
+        run: |
+          npm run build
+          npm run export
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Deploy to Netlify (Production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --prod --dir=docs-website/out
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+      - name: Deploy to Netlify (Preview)
+        if: github.event_name == 'pull_request'
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=docs-website/out
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+  # Deploy to GitHub Pages (Alternative)
+  deploy-github-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: docs-website/package-lock.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Install dependencies
+        run: |
+          cd docs-website
+          npm ci
+
+      - name: Build documentation
+        run: |
+          cd docs-website
+          npm run build
+          npm run export
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-website/out
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Link checking and SEO validation
+  validate:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-build
+          path: docs-website/out/
+
+      - name: Install link checker
+        run: npm install -g broken-link-checker
+
+      - name: Start local server
+        run: |
+          cd docs-website/out
+          python3 -m http.server 8080 &
+          echo $! > server.pid
+          sleep 5
+
+      - name: Check for broken links
+        run: |
+          blc http://localhost:8080 \
+            --recursive \
+            --ordered \
+            --exclude-external \
+            --filter-level 3 \
+            --verbose
+        continue-on-error: true
+
+      - name: Stop local server
+        run: |
+          if [ -f docs-website/out/server.pid ]; then
+            kill $(cat docs-website/out/server.pid)
+          fi
+
+      - name: Validate HTML
+        uses: Cyb3r-Jak3/html5validator-action@v7.2.0
+        with:
+          root: docs-website/out/
+          css: true
+          verbose: true
+        continue-on-error: true
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: docs-website
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: docs-website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        run: npm audit --audit-level=high
+
+      - name: Check for outdated dependencies
+        run: npm outdated
+        continue-on-error: true
+
+      - name: Run dependency vulnerability scan
+        uses: securecodewarrior/github-action-add-sarif@v1
+        with:
+          sarif-file: 'security-scan-results.sarif'
+        continue-on-error: true
+
+  # Performance testing
+  lighthouse:
+    name: Lighthouse Performance Test
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-build
+          path: docs-website/out/
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: docs-website/.lighthouserc.json
+          temporaryPublicStorage: true
+          uploadArtifacts: true
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # Notify deployment status
+  notify:
+    name: Deployment Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-vercel, deploy-netlify]
+    if: always() && (github.ref == 'refs/heads/main' && github.event_name == 'push')
+
+    steps:
+      - name: Notify success
+        if: needs.deploy-vercel.result == 'success' || needs.deploy-netlify.result == 'success'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: '✅ Documentation deployed successfully!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify failure
+        if: needs.deploy-vercel.result == 'failure' || needs.deploy-netlify.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: '❌ Documentation deployment failed!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -1,0 +1,135 @@
+{
+  "version": 2,
+  "name": "dossier-docs",
+  "public": true,
+  "github": {
+    "silent": true
+  },
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "out"
+      }
+    }
+  ],
+  "buildCommand": "npm run build && npm run export",
+  "outputDirectory": "out",
+  "installCommand": "npm ci",
+  "devCommand": "npm run dev",
+  "framework": "nextjs",
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/documentation",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/guide",
+      "destination": "/getting-started",
+      "permanent": true
+    },
+    {
+      "source": "/setup",
+      "destination": "/getting-started",
+      "permanent": true
+    },
+    {
+      "source": "/install",
+      "destination": "/getting-started/installation",
+      "permanent": true
+    },
+    {
+      "source": "/config",
+      "destination": "/configuration",
+      "permanent": true
+    },
+    {
+      "source": "/deploy",
+      "destination": "/deployment",
+      "permanent": true
+    },
+    {
+      "source": "/api",
+      "destination": "/api-reference",
+      "permanent": true
+    },
+    {
+      "source": "/help",
+      "destination": "/troubleshooting",
+      "permanent": true
+    },
+    {
+      "source": "/support",
+      "destination": "/troubleshooting",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "env": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "functions": {
+    "pages/api/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "regions": ["iad1"],
+  "crons": []
+}
