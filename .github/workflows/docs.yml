@@ -277,11 +277,10 @@ jobs:
         run: npm outdated
         continue-on-error: true
 
-      - name: Run dependency vulnerability scan
-        uses: securecodewarrior/github-action-add-sarif@v1
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v2
         with:
-          sarif-file: "security-scan-results.sarif"
-        continue-on-error: true
+          sarif_file: security-scan-results.sarif
 
   # Performance testing
   lighthouse:
