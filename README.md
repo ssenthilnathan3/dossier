@@ -19,7 +19,7 @@ Dossier is built as a microservices architecture with clear separation of concer
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frappe    │────│ Webhook Handler │────│  Message Queue  │
+│   Frappe        │────│ Webhook Handler │────│  Message Queue  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                                        │
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
