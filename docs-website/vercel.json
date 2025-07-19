@@ -5,17 +5,8 @@
   "github": {
     "silent": true
   },
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "out"
-      }
-    }
-  ],
-  "buildCommand": "npm run build && npm run export",
-  "outputDirectory": "out",
+
+  "buildCommand": "npm run build",
   "installCommand": "npm ci",
   "devCommand": "npm run dev",
   "framework": "nextjs",
@@ -125,11 +116,7 @@
     "NODE_ENV": "production",
     "NEXT_TELEMETRY_DISABLED": "1"
   },
-  "functions": {
-    "pages/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
+
   "regions": ["iad1"],
   "crons": []
 }
