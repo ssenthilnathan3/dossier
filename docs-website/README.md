@@ -6,7 +6,7 @@ A modern, GitBook-style documentation website for the Dossier Live RAG System, b
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn package manager
 
 ### Development Setup
@@ -52,7 +52,7 @@ docs-website/
 └── package.json          # Dependencies and scripts
 ```
 
-## 🎨 Customization
+## 🎨 Customisation
 
 ### Theme Configuration
 
