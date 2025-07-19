@@ -292,4 +292,4 @@ This documentation website is part of the Dossier project and is licensed under 
 
 ---
 
-Built with ❤️ using [Nextra](https://nextra.site/) and [Next.js](https://nextjs.org/)
+Built with ❤️ using [Nextra](https://nextra.site/) and [Next.js](https://nextjs.org/)trigge
