@@ -1,0 +1,52 @@
+# Qdrant Production Configuration
+
+log_level: INFO
+
+service:
+  http_port: 6333
+  grpc_port: 6334
+  enable_cors: true
+  max_request_size_mb: 32
+  max_workers: 0  # Auto-detect based on CPU cores
+
+storage:
+  # Storage configuration
+  storage_path: /qdrant/storage
+  snapshots_path: /qdrant/snapshots
+  temp_path: /qdrant/temp
+  
+  # Performance settings
+  performance:
+    max_search_threads: 0  # Auto-detect
+    max_optimization_threads: 0  # Auto-detect
+  
+  # Memory settings
+  memory:
+    # Limit memory usage for vectors
+    max_vectors_memory_mb: 1024
+    
+  # Optimization settings
+  optimizers:
+    # Deleted vectors cleanup
+    deleted_threshold: 0.2
+    vacuum_min_vector_number: 1000
+    default_segment_number: 0  # Auto-detect
+    max_segment_size_mb: 32
+    memmap_threshold_mb: 1000
+    indexing_threshold_mb: 20
+    flush_interval_sec: 5
+    max_optimization_threads: 1
+
+cluster:
+  enabled: false
+
+# Telemetry settings
+telemetry_disabled: true
+
+# API settings
+api:
+  enable_ui: false  # Disable UI in production
+  
+# Security settings (if authentication is needed)
+# service:
+#   api_key: "your-api-key-here"
