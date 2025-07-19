@@ -52,7 +52,7 @@ docs-website/
 └── package.json          # Dependencies and scripts
 ```
 
-## 🎨 Customisation
+## 🎨 Customization
 
 ### Theme Configuration
 
