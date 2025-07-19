@@ -330,12 +330,6 @@ You are welcome to contribute!
 
 This project is licensed under the MIT License.
 
-## 🆘 Support
-
-- **Documentation**: [GitHub Wiki](https://github.com/your-org/dossier/wiki)
-- **Issues**: [GitHub Issues](https://github.com/your-org/dossier/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/dossier/discussions)
-
 ## 🙏 Acknowledgments
 
 - [Frappe Framework](https://frappeframework.com/) for the excellent base platform
