@@ -4,11 +4,11 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'docs-website/**'
+      - "docs-website/**"
   pull_request:
     branches: [main, master]
     paths:
-      - 'docs-website/**'
+      - "docs-website/**"
   workflow_dispatch:
 
 jobs:
@@ -29,8 +29,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: docs-website/package-lock.json
 
       - name: Install dependencies
@@ -72,8 +72,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: docs-website/package-lock.json
 
       - name: Install Vercel CLI
@@ -108,8 +108,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: docs-website/package-lock.json
 
       - name: Install dependencies
@@ -164,8 +164,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: docs-website/package-lock.json
 
       - name: Setup Pages
@@ -208,7 +208,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -266,8 +266,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: docs-website/package-lock.json
 
       - name: Install dependencies
@@ -283,7 +283,7 @@ jobs:
       - name: Run dependency vulnerability scan
         uses: securecodewarrior/github-action-add-sarif@v1
         with:
-          sarif-file: 'security-scan-results.sarif'
+          sarif-file: "security-scan-results.sarif"
         continue-on-error: true
 
   # Performance testing
@@ -325,7 +325,7 @@ jobs:
         uses: 8398a7/action-slack@v3
         with:
           status: success
-          text: '✅ Documentation deployed successfully!'
+          text: "✅ Documentation deployed successfully!"
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -335,7 +335,7 @@ jobs:
         uses: 8398a7/action-slack@v3
         with:
           status: failure
-          text: '❌ Documentation deployment failed!'
+          text: "❌ Documentation deployment failed!"
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
